@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Pomodoro</title>
+    <style>
+        body {
+            background-color: black;
+        }
+
+        #TimerLabel, #BreaksLabel {
+            margin-top: 100px;
+            margin-bottom: 100px;
+            min-height: 80px;
+            font-size: 32pt;
+            font-weight: bold;
+            color: #ff5555;
+            text-align: center;
+        }
+        #BreaksLabel {
+            font-size: 18pt;
+            margin: 20px;
+            color: gray;
+        }
+
+        #Controls {
+            margin: 10px;
+            padding: 20px;
+        }
+
+        #Btn, #Pause {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            min-width: 200px;
+            padding: 10px;
+            font-size: large;
+            background-color: greenyellow;
+            border-radius: 10px;
+/*            box-shadow: 10px 10px 5px 0px gray;*/
+        }
+        #Pause {
+            min-width: 0;
+            padding: 5px;
+            background-color: gray;
+        }
+    </style>
+    <script>
+        "use strict";
+
+        var c_WorkSeconds = 25 * 60;
+        var c_ShortBreakSeconds = 5 * 60;
+        var c_LongBreakSeconds = 10 * 60;
+        var c_NotifyDelay = 20;
+
+        var Timer;
+
+        var SecondsLeft = 0;
+        var NextBreakCount = 1;
+        var NotifyCountdown = 0;
+        var BreaksCount = 0;
+        var bWorkMode = false;
+        var bPaused = true;
+
+        var elTimerLabel = null;
+        var elBreaksLabel = null;
+        var elButton = null;
+        var elPauseButton = null;
+
+        if ((Notification.permission == 'default') || (Notification.permission == 'denied')) {
+            Notification.requestPermission();
+        }
+
+        function Notify() {
+            var Notice = 'Starting Work';
+            if (!bWorkMode) Notice = 'Starting Break';
+            if (SecondsLeft < 1) {
+                Notice = 'Time for work';
+                if (bWorkMode) Notice = 'BREAK!';
+            }
+            var options = { body: Notice };
+            var n = new Notification('Pomodoro', options);
+        }
+
+        function ShowTime(Seconds) {
+            if (elTimerLabel !== null) {
+//                if (Seconds < 0) Seconds = 0;
+
+                var IsNeg = (Seconds < 0);
+                if (IsNeg) Seconds = Math.abs(Seconds);
+
+                var Hours = 0;
+                var Minutes = 0;
+                while (Seconds > 59) {
+                    Seconds -= 60;
+                    Minutes++;
+                }
+                while (Minutes > 59) {
+                    Minutes -= 60;
+                    Hours++;
+                }
+
+                var s = '';
+                if (IsNeg) s = '-';
+                if (Hours > 0) {
+                    s += Hours + ':';
+                    if (Minutes < 10) s += '0';
+                }
+                s += Minutes + ':';
+                if (Seconds < 10) Seconds = '0' + Seconds;
+                s += Seconds;
+
+                elTimerLabel.innerHTML = s;
+            }
+        }
+
+        function CountDown() {
+            if (!bPaused) {
+                SecondsLeft--;
+                if (SecondsLeft <= 0) {
+                    NotifyCountdown--;
+                    if (NotifyCountdown < 1) {
+                        NotifyCountdown = c_NotifyDelay;
+                        Notify();
+                    }
+                }
+                ShowTime(SecondsLeft);
+            }
+        }
+
+        function NextStage() {
+            bWorkMode = !bWorkMode;
+            var ButtonMessage = '';
+            if (!bWorkMode) {
+                BreaksCount++;
+                var RestSeconds = c_ShortBreakSeconds;
+                NextBreakCount++;
+                if (NextBreakCount > 4) {
+                    NextBreakCount = 1;
+                    RestSeconds = c_LongBreakSeconds;
+                }
+                SecondsLeft = RestSeconds;
+                ButtonMessage = 'Start Work';
+            } else {
+                SecondsLeft = c_WorkSeconds;
+                ButtonMessage = 'Start Break';
+            }
+
+            UnPause();
+            Notify();
+
+            if (elBreaksLabel !== null) elBreaksLabel.innerHTML = 'Breaks: ' + BreaksCount;
+            if (elButton !== null) elButton.value = ButtonMessage;
+        }
+
+        function UpdatePauseLabel() {
+            if (elPauseButton !== null) {
+                var s;
+                if (bPaused) s = 'Unpause';
+                else s = 'Pause';
+                elPauseButton.value = s;
+            }
+        }
+        function UnPause() {
+            bPaused = false;
+            NotifyCountdown = 0;
+            UpdatePauseLabel();
+        }
+        function Pause() {
+            bPaused = true;
+            UpdatePauseLabel();
+        }
+        function TogglePause() {
+            if (bPaused) UnPause();
+            else Pause();
+        }
+
+        function Init_Pomodoro(TimerElement, BreaksElement, ButtonElement, PauseButtonElement) {
+            elTimerLabel = TimerElement;
+            elBreaksLabel = BreaksElement;
+            elButton = ButtonElement;
+            elPauseButton = PauseButtonElement;
+            Timer = setInterval(CountDown, 1000);
+            elButton.value = 'Begin Pomodoro';
+            Pause();
+        }
+    </script>
+</head>
+<body>
+<div id="TimerLabel"></div>
+<div id="BreaksLabel"></div>
+<div id="Controls">
+    <p>
+        <input id="Btn" name="NextButton" type="button" onclick="NextStage()" />
+    </p>
+
+    <p>
+        <input id="Pause" name="PauseButton" type="button" onclick="TogglePause()" />
+    </p>
+</div>
+<script>
+    Init_Pomodoro(document.getElementById('TimerLabel'), document.getElementById('BreaksLabel'), document.getElementsByName('NextButton')[0], document.getElementsByName('PauseButton')[0]);
+</script>
+</body>
+</html>
